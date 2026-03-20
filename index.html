@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Advanced Weather Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(120deg, #141E30, #243B55);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2.5rem;
+            letter-spacing: 1px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+        }
+
+        button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 10px;
+            background: #ff7e5f;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            background: #ff5a36;
+        }
+
+        .weather-main {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .temp {
+            font-size: 3rem;
+            font-weight: bold;
+        }
+
+        .city {
+            font-size: 1.5rem;
+            margin-top: 5px;
+        }
+
+        .details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .detail-box {
+            background: rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .history {
+            margin-top: 15px;
+        }
+
+        .history button {
+            margin: 5px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .history button:hover {
+            background: #ff7e5f;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>🌦 Advanced Weather Dashboard</h1>
+
+        <div class="grid">
+            <!-- LEFT -->
+            <div class="card">
+                <h3>Search City</h3>
+                <div class="search-box">
+                    <input id="cityInput" placeholder="Enter city name...">
+                    <button id="searchBtn">Search</button>
+                </div>
+
+                <h3>Recent Searches</h3>
+                <div class="history" id="history"></div>
+            </div>
+
+            <!-- RIGHT -->
+            <div class="card">
+                <div id="weather">
+                    <div class="weather-main">
+                        <div class="temp">--°C</div>
+                        <div class="city">Search a city</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">Made with ❤️ using OpenWeather API</div>
+    </div>
+
+    <script>
+        const API_KEY = "b3075ddc2df47ae06fc28617c566a4d9";
+        const weatherBox = document.getElementById("weather");
+        const historyBox = document.getElementById("history");
+
+        async function getWeather(city) {
+            const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`);
+            if (!res.ok) throw new Error("City not found");
+            return await res.json();
+        }
+
+        function renderWeather(d) {
+            weatherBox.innerHTML = `
+                <div class="weather-main">
+                    <div class="temp">${d.main.temp}°C</div>
+                    <div class="city">${d.name}, ${d.sys.country}</div>
+                    <div>${d.weather[0].main}</div>
+                </div>
+
+                <div class="details">
+                    <div class="detail-box">Humidity<br>${d.main.humidity}%</div>
+                    <div class="detail-box">Wind<br>${d.wind.speed} m/s</div>
+                    <div class="detail-box">Feels Like<br>${d.main.feels_like}°C</div>
+                    <div class="detail-box">Pressure<br>${d.main.pressure} hPa</div>
+                </div>
+            `;
+        }
+
+        function saveHistory(city) {
+            let history = JSON.parse(localStorage.getItem("weatherHistory") || "[]");
+            if (!history.includes(city)) {
+                history.unshift(city);
+                if (history.length > 8) history.pop();
+                localStorage.setItem("weatherHistory", JSON.stringify(history));
+            }
+            showHistory();
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem("weatherHistory") || "[]");
+            historyBox.innerHTML = history.map(c => `<button onclick="search('${c}')">${c}</button>`).join("");
+        }
+
+        async function search(city) {
+            try {
+                weatherBox.innerHTML = "<p>Loading...</p>";
+                const data = await getWeather(city);
+                renderWeather(data);
+                saveHistory(data.name);
+            } catch (e) {
+                weatherBox.innerHTML = `<p style='color:red'>${e.message}</p>`;
+            }
+        }
+
+        document.getElementById("searchBtn").onclick = () => {
+            const city = cityInput.value.trim();
+            if (city) search(city);
+        };
+
+        cityInput.addEventListener("keydown", e => {
+            if (e.key === "Enter") search(cityInput.value);
+        });
+
+        showHistory();
+    </script>
+
+</body>
+
+</html>
